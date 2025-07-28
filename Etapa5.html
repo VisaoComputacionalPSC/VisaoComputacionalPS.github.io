@@ -24,26 +24,19 @@
         ol {
             margin-left: 20px;
         }
-        .questionario, .enquete {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        .questionario textarea, .enquete textarea {
-            width: 100%;
-            height: 100px;
-            padding: 10px;
-            margin-top: 10px;
-            border: 1px solid #ddd;
+        .botao-form {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 25px;
+            border: none;
             border-radius: 5px;
+            text-align: center;
+            display: inline-block;
+            text-decoration: none;
+            font-size: 16px;
         }
-        .escalas {
-            display: flex;
-            justify-content: space-between;
-        }
-        .escalas label {
-            width: 18%;
+        .botao-form:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
@@ -74,94 +67,20 @@
         </ol>
     </section>
 
-    <!-- Questionário -->
-    <section class="section questionario">
+    <!-- Link para o Questionário no Google Forms -->
+    <section class="section">
         <h2>Questionário de Avaliação</h2>
-        <p>Por favor, responda as perguntas abaixo para avaliar sua experiência com o experimento:</p>
-        <form>
-            <label for="q1">1. Você entendeu o funcionamento do sistema após a execução do experimento?</label><br>
-            <textarea id="q1" name="q1"></textarea><br><br>
-
-            <label for="q2">2. Você obteve os resultados esperados durante o experimento? Explique.</label><br>
-            <textarea id="q2" name="q2"></textarea><br><br>
-
-            <label for="q3">3. O sistema foi fácil de operar? O que pode ser melhorado?</label><br>
-            <textarea id="q3" name="q3"></textarea><br><br>
-
-            <label for="q4">4. Como você avalia sua compreensão do sistema após realizar o experimento?</label><br>
-            <textarea id="q4" name="q4"></textarea><br><br>
-            
-            <label for="q5">5. Você acredita que a aplicação do sistema tem relevância para o estudo de sistemas fotovoltaicos?</label><br>
-            <textarea id="q5" name="q5"></textarea><br><br>
-        </form>
+        <p>Por favor, clique no link abaixo para acessar o questionário de avaliação e responder às questões sobre o experimento:</p>
+        <a href="https://forms.gle/SEU_LINK_AQUI" target="_blank" class="botao-form">Acessar Questionário</a>
     </section>
 
-    <!-- Enquete Subjetiva de Opinião -->
-    <section class="section enquete">
+    <!-- Link para a Enquete Subjetiva de Opinião (ESO) -->
+    <section class="section">
         <h2>Enquete Subjetiva de Opinião (ESO)</h2>
-        <p>Por favor, avalie sua experiência no experimento usando a escala de 1 a 5, onde 1 significa "Discordo totalmente" e 5 significa "Concordo totalmente".</p>
-        <form>
-            <div class="escalas">
-                <label for="e1">1. A interface do sistema é intuitiva:</label>
-                <select id="e1" name="e1">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
-            </div>
-
-            <div class="escalas">
-                <label for="e2">2. O sistema forneceu os resultados de forma clara:</label>
-                <select id="e2" name="e2">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
-            </div>
-
-            <div class="escalas">
-                <label for="e3">3. Eu aprendi sobre sistemas fotovoltaicos ao realizar este experimento:</label>
-                <select id="e3" name="e3">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
-            </div>
-
-            <div class="escalas">
-                <label for="e4">4. O sistema está bem projetado e funcional:</label>
-                <select id="e4" name="e4">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
-            </div>
-
-            <div class="escalas">
-                <label for="e5">5. Eu recomendaria este experimento para outros estudantes:</label>
-                <select id="e5" name="e5">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
-            </div>
-
-            <br><br>
-            <button type="submit">Enviar Respostas</button>
-        </form>
+        <p>Por favor, clique no link abaixo para acessar a enquete subjetiva de opinião (ESO) e avaliar sua experiência com o sistema:</p>
+        <a href="https://forms.gle/SEU_LINK_AQUI" target="_blank" class="botao-form">Acessar Enquete</a>
     </section>
 </div>
 
 </body>
 </html>
-
