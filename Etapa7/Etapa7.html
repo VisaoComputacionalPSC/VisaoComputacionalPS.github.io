@@ -97,14 +97,20 @@
 
         <h2>Materiais e métodos</h2>
         <h3>Modelagem Funcional do SPV (MF)</h3>
-        <p>Em ambientes escolares, os métodos manuais de controle de acesso, como listas e cartões, são ineficientes e suscetíveis a falhas. A ausência de um monitoramento automatizado permite que pessoas não autorizadas circulem em áreas restritas, comprometendo a segurança. O sistema proposto utiliza câmeras e inteligência artificial para identificar, em tempo real, se um indivíduo pode ou não acessar determinado ambiente.</p>
-        <p>O objetivo geral do sistema é fornecer uma solução automatizada de controle de acesso por reconhecimento facial, capaz de autorizar ou negar a entrada de maneira rápida e sem necessidade de cartões, senhas ou intervenção humana. Para o usuário, o sistema simplesmente "reconhece o rosto" e abre (ou não) a porta.</p>   
-        <p>O sistema conta com os seguintes atores: o Administrador, que cadastra rostos, consulta logs e configura alertas; o Usuário Autorizado, que tem o rosto registrado e obtém acesso automaticamente; o Intruso, que não possui cadastro e tem o acesso negado; e o Sistema de Controle de Acesso, que é composto pelo hardware e software de visão computacional, responsável por decidir se o acesso deve ser permitido ou bloqueado.</p>      
-        <p>As entradas do sistema incluem o fluxo de vídeo da câmera posicionada no ponto de entrada, o banco de rostos autorizados (imagens + IDs) e os comandos do administrador, como cadastrar, remover e consultar usuários. O processo principal envolve a captura de imagens em tempo real, a detecção facial para localizar rostos nos frames, o reconhecimento facial para comparar com o banco de dados e a decisão de acesso, que pode liberar ou bloquear a porta. Além disso, todos os eventos são registrados e notificações são enviadas em caso de tentativas não autorizadas.</p>    
-        <p>As saídas do sistema incluem um sinal elétrico para destravar ou manter a porta trancada, o log de acesso (usuário, hora e status) e a notificação para tentativas de acesso não autorizadas. Os requisitos funcionais incluem a detecção de rostos em tempo real, a comparação com o banco de usuários autorizados, o destravamento da porta quando o rosto for reconhecido, a manutenção da porta trancada quando o rosto não for reconhecido, o registro dos eventos de acesso, a possibilidade de cadastrar e remover usuários via interface e o envio de notificações para tentativas de acesso não autorizadas.</p>
-        <p>O administrador do sistema pode cadastrar rostos, consultar o histórico de acessos e configurar alertas. O usuário autorizado simplesmente se aproxima da câmera e o acesso é liberado automaticamente. O intruso tem o acesso negado, e um alerta é gerado.</p>
-        <p>Entre os benefícios ao usuário, estão a segurança proporcionada pelo bloqueio automático para pessoas não cadastradas, a conveniência de não precisar de cartões ou senhas, o monitoramento remoto dos logs e alertas e a escalabilidade, permitindo a aplicação da tecnologia em múltiplas entradas ou unidades escolares.</p>
-        <p>O resultado final esperado é que o sistema seja percebido como uma "porta inteligente" que se abre apenas quando reconhece o rosto autorizado, exibindo um sinal visual ou sonoro de confirmação. Em caso de rosto desconhecido, a porta permanece fechada e um alerta é disparado para o responsável.</p>
+<p>O sistema recebe o fluxo de vídeo da câmera instalada na entrada e compara os rostos detectados com o banco de dados de usuários autorizados.</p>
+<ol>
+  <li>Captura da imagem em tempo real.</li>
+  <li>Detecção facial para localizar o rosto no quadro.</li>
+  <li>Reconhecimento facial comparando com rostos cadastrados.</li>
+  <li>Decisão:
+    <ul>
+      <li>Se o rosto for reconhecido → envia sinal para destravar a porta e registra o acesso no log.</li>
+      <li>Se não for reconhecido → mantém a porta trancada, registra a tentativa e envia alerta ao administrador.</li>
+    </ul>
+  </li>
+</ol>
+<p>O administrador pode cadastrar e remover usuários, consultar o histórico e configurar alertas via interface.</p>
+<p>Saídas: porta aberta ou fechada, registro de acessos e notificações em casos não auto      
         <p>O fluxo do projeto é apresentado abaixo:</p>
         <img src="Fluxo.png" alt="Fluxograma do projeto" />
 
