@@ -736,6 +736,134 @@
         <a href="https://docs.google.com/forms/d/1RQewnyRig8O_KLCCyn0REd_ARzE5OrtFDU3Ue18dLPw/edit" target="_blank" class="botao-form">Acessar Questionário</a>
     </section>
 
+        <h1>Quadro de Correspondência: Requisitos ↔ Trechos do Código</h1>
+
+<h2>I. Requisitos Obrigatórios</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Requisito</th>
+      <th>Onde no código</th>
+      <th>Trecho correspondente</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Filtragem de imagens</td>
+      <td><code>capturar_fotos_rosto()</code> — suavização do recorte do rosto</td>
+      <td>
+        <pre><code>rosto = cv2.resize(rosto, (200, 200))
+rosto = cv2.GaussianBlur(rosto, (5, 5), 0)  # Suavização de ruído</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>Transformações geométricas</td>
+      <td>
+        <p>a) Redimensionamento do rosto (padronização)</p>
+        <p>b) Remapeamento (desdistorção por mapa)</p>
+      </td>
+      <td>
+        <pre><code># a) Em capturar_fotos_rosto() e reconhecer_rosto_eigenface()
+rosto = cv2.resize(rosto, (200, 200))</code></pre>
+        <pre><code># b) Em reconhecer_rosto_eigenface() (aplica mapas gerados na calibração)
+frame_corrigido = cv2.remap(frame, Left_Stereo_Map_x, Left_Stereo_Map_y, cv2.INTER_LINEAR)</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>Calibração de câmeras</td>
+      <td>
+        <p>a) Coleta de cantos do tabuleiro (calibração)</p>
+        <p>b) Estimativa de parâmetros e mapas</p>
+      </td>
+      <td>
+        <pre><code># a) Em calibragem()
+retL, cornersL = cv2.findChessboardCorners(outputL, (8, 6), None)
+cv2.cornerSubPix(imgL_gray, cornersL, (11, 11), (-1, -1), criteria)
+img_ptsL.append(cornersL)
+obj_pts.append(objp)</code></pre>
+        <pre><code># b) Em calcula_params()
+retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(
+    obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
+
+Left_Stereo_Map = cv2.initUndistortRectifyMap(
+    mtxL, distL, None, mtxL, imgL_gray.shape[::-1], cv2.CV_16SC2)
+
+cv_file = cv2.FileStorage(f"{path}/params_py.xml", cv2.FILE_STORAGE_WRITE)
+cv_file.write("Left_Stereo_Map_x", Left_Stereo_Map[0])
+cv_file.write("Left_Stereo_Map_y", Left_Stereo_Map[1])
+cv_file.release()</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>Propriedades intrínsecas e extrínsecas</td>
+      <td><code>calcula_params()</code> — retornos de <code>calibrateCamera</code></td>
+      <td>
+        <pre><code>retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(
+    obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
+# mtxL  -> matriz intrínseca
+# distL -> coeficientes de distorção (intrínsecos)
+# rvecsL, tvecsL -> extrínsecos (rotação e translação por imagem)</code></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>II. Pelo menos um item (escolhido: Reconhecimento)</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Onde no código</th>
+      <th>Trecho correspondente</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Reconhecimento — Eigenfaces (OpenCV)</td>
+      <td>
+        <p>a) Treinamento do reconhecedor</p>
+        <p>b) Predição no frame</p>
+      </td>
+      <td>
+        <pre><code># a) Em treinar_eigenfaces()
+recognizer = cv2.face.EigenFaceRecognizer_create()
+recognizer.train(faces, np.array(labels))</code></pre>
+        <pre><code># b) Em reconhecer_rosto_eigenface()
+label_id, confianca = recognizer.predict(rosto)
+limiar_confianca = 3500
+if confianca &gt; limiar_confianca:
+    texto = f"Desconhecido - Confiança: {confianca:.2f}"
+else:
+    # mapeia label_id para nome</code></pre>
+      </td>
+    </tr>
+
+    <tr>
+      <td>Reconhecimento — face_recognition (dlib)</td>
+      <td>
+        <p>a) Extração de embeddings do dataset</p>
+        <p>b) Comparação de embeddings na webcam</p>
+      </td>
+      <td>
+        <pre><code># a) Em reconhecer_rosto_face_recognition() (pré-carregamento)
+img = face_recognition.load_image_file(caminho_imagem)
+codificacao = face_recognition.face_encodings(img)
+if len(codificacao) &gt; 0:
+    codificacoes.append(codificacao[0])</code></pre>
+        <pre><code># b) Em reconhecer_rosto_face_recognition() (loop da câmera)
+faces = face_recognition.face_locations(rgb_frame)
+codificacoes_frame = face_recognition.face_encodings(rgb_frame, faces)
+resultados = face_recognition.compare_faces(codificacoes, codificacao_rosto)
+distancias = face_recognition.face_distance(codificacoes, codificacao_rosto)
+melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None</code></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 
     <h3>Testes Realizados</h3>
