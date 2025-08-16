@@ -124,7 +124,582 @@
         
         <h3>Lista dos arquivos: dos código-fonte, imagens, vídeos, e arquivos auxiliares.</h3>
         <h3>Análise Técnica</h3>
+        <h3>Código fonte</h3>
+        <h2>detectar_cameras(max_cameras=10)</h2>
+        <p>Varre índices de 0 até <code>max_cameras-1</code>, abre cada dispositivo com OpenCV e adiciona à lista se um frame válido é lido. Retorna a lista de índices detectados.</p>
+        <pre><code>def detectar_cameras(max_cameras=10):
+            print("Procurando por câmeras conectadas...")
+            indices_disponiveis = []
+            for i in range(max_cameras):
+                cap = cv2.VideoCapture(i)
+                if cap.read()[0]:
+                    print(f"Câmera encontrada no índice {i}")
+                    indices_disponiveis.append(i)
+                cap.release()
+            return indices_disponiveis
+        </code></pre>
 
+        <h2>tirar_fotos()</h2>
+        <p>Usa a primeira câmera encontrada, mostra um contador de 2s, tenta detectar um tabuleiro de xadrez 8×6 e, quando detectado no momento do disparo, salva até 20 imagens para calibração.</p>
+        <pre><code>def tirar_fotos():
+
+            indices = detectar_cameras()
+            if len(indices) &lt; 1:
+                print("Menos de uma câmera detectadas. Conecte duas e tente novamente.")
+                return
+
+            CamL_id = indices[0]
+
+            CamL = cv2.VideoCapture(CamL_id)
+
+            for i in range(100):
+                retL, frameL = CamL.read()
+
+            cv2.imshow('Grupo PSC', frameL)
+            CamL.release()
+
+            CamL = cv2.VideoCapture(CamL_id)
+
+            start = time.time()
+            T = 2
+            count = 0
+
+            while True:
+                timer = T - int(time.time() - start)
+                retL, frameL = CamL.read()
+
+                img1_temp = frameL.copy()
+                cv2.putText(img1_temp, f"{timer}", (50, 50), 1, 5, (55, 0, 0), 5)
+                cv2.imshow('Grupo PSC', img1_temp)
+
+                grayL = cv2.cvtColor(frameL, cv2.COLOR_BGR2GRAY)
+
+                retL, cornersL = cv2.findChessboardCorners(grayL, (8, 6), None)
+
+                if (retL == True) and timer &lt;= 0 and count &lt;20:
+                    count += 1
+                    cv2.imwrite(f'{path}/img{count}.png', frameL)
+
+                if timer &lt;= 0:
+                    start = time.time()
+
+                if (cv2.waitKey(1) &amp; 0xFF == 27) or (count&gt;=20) :
+                    print("Closing the cameras!")
+                    break
+
+            CamL.release()
+            cv2.destroyAllWindows()
+        </code></pre>
+
+        <h2>calibragem()</h2>
+        <p>Para cada imagem salva (img1..img20), detecta cantos do tabuleiro 8×6, refina com <code>cornerSubPix</code>, desenha e acumula pares 3D–2D. Ao final chama <code>calcula_params</code>.</p>
+        <pre><code>def calibragem():
+            print("Extracting image coordinates of respective 3D pattern ....\n")
+
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+            objp = np.zeros((8 * 6, 3), np.float32)
+            objp[:, :2] = np.mgrid[0:8, 0:6].T.reshape(-1, 2)
+
+            img_ptsL = []
+            img_ptsR = []
+            obj_pts = []
+
+            for i in tqdm(range(1, 21)):
+                imgL = cv2.imread(f"{path}/img{i}.png")
+
+                imgL_gray = cv2.cvtColor(imgL, cv2.COLOR_BGR2GRAY)
+
+                outputL = imgL.copy()
+
+                retL, cornersL = cv2.findChessboardCorners(outputL, (8, 6), None)
+
+                if retL:
+                    obj_pts.append(objp)
+                    cv2.cornerSubPix(imgL_gray, cornersL, (11, 11), (-1, -1), criteria)
+                    cv2.drawChessboardCorners(outputL, (8, 6), cornersL, retL)
+                    #cv2.imshow('Grupo PSC', outputL)
+
+                    img_ptsL.append(cornersL)
+
+                    cv2.imwrite(f'{path}/img{i}.png', outputL)
+
+            calcula_params(obj_pts, img_ptsL, imgL_gray)
+        </code></pre>
+
+        <h2>calcula_params(obj_pts, img_ptsL, imgL_gray)</h2>
+        <p>Roda <code>cv2.calibrateCamera</code> para obter intrínsecos e distorção. Cria mapas de remapeamento com <code>initUndistortRectifyMap</code> e salva em <code>params_py.xml</code>.</p>
+        <pre><code>def calcula_params(obj_pts, img_ptsL, imgL_gray):
+            print("Calculating left camera parameters ... ")
+            retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
+
+            Left_Stereo_Map = cv2.initUndistortRectifyMap(
+                mtxL, distL, None, mtxL, imgL_gray.shape[::-1], cv2.CV_16SC2
+            )
+
+            print("Saving parameters ......")
+            cv_file = cv2.FileStorage(f"{path}/params_py.xml", cv2.FILE_STORAGE_WRITE)
+            cv_file.write("Left_Stereo_Map_x", Left_Stereo_Map[0])
+            cv_file.write("Left_Stereo_Map_y", Left_Stereo_Map[1])
+            cv_file.release()
+        </code></pre>
+
+        <h2>criar_diretorio_dataset()</h2>
+        <p>Garante que a pasta <code>dataset_faces</code> exista para salvar os recortes de rosto.</p>
+        <pre><code>def criar_diretorio_dataset():
+            if not os.path.exists(dataset_path):
+                os.makedirs(dataset_path)
+        </code></pre>
+
+        <h2>capturar_fotos_rosto()</h2>
+        <p>Lê o nome do usuário, carrega os mapas de remapeamento da calibração, detecta um rosto (Haar Cascade), faz um countdown de 3s, recorta, suaviza e salva uma imagem 200×200 em <code>dataset_faces/&lt;usuario&gt;_0.png</code>.</p>
+        <pre><code>def capturar_fotos_rosto():
+            num_fotos = 1
+            nome_usuario = input("Digite o nome do usuário para capturar as fotos: ").strip()
+            if not nome_usuario:
+                print("[ERRO] Nome de usuário inválido!")
+                return
+
+            cv_file = cv2.FileStorage(f"{path}/params_py.xml", cv2.FILE_STORAGE_READ)
+            Left_Stereo_Map_x = cv_file.getNode("Left_Stereo_Map_x").mat()
+            Left_Stereo_Map_y = cv_file.getNode("Left_Stereo_Map_y").mat()
+            cv_file.release()
+
+            indices = detectar_cameras()
+            if len(indices) &lt; 1:
+                print("❌ Nenhuma câmera detectada.")
+                return
+
+            CamL = cv2.VideoCapture(indices[0])
+            criar_diretorio_dataset()
+
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+            print(f"[INFO] Capturando {num_fotos} fotos de {nome_usuario}...")
+
+            count = 0
+            countdown_time = 3
+            start_time = None
+
+            while count &lt; num_fotos:
+                retL, frameL = CamL.read()
+                if not retL:
+                    continue
+
+                frameL = cv2.remap(frameL, Left_Stereo_Map_x, Left_Stereo_Map_y, cv2.INTER_LINEAR)
+                #grayL = cv2.cvtColor(frameL, cv2.COLOR_BGR2GRAY)
+                grayL = frameL
+                facesL = face_cascade.detectMultiScale(grayL, 1.3, 5)
+
+                rosto = None
+                if len(facesL) &gt; 0:
+                    if start_time is None:
+                        start_time = time.time()
+                    elapsed = time.time() - start_time
+                    countdown = countdown_time - int(elapsed)
+
+                    (x, y, w, h) = facesL[0]
+                    rosto = grayL[y:y+h, x:x+w]
+                    rosto = cv2.resize(rosto, (200, 200))
+                    rosto = cv2.GaussianBlur(rosto, (5, 5), 0)  # Suavização de ruído
+                    cv2.imshow("PSC - Rosto Suavizado", rosto)  # Exibe o rosto suavizado
+                    cv2.rectangle(frameL, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    cv2.putText(frameL, f"Contagem: {countdown}", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                else:
+                    start_time = None
+                    countdown = countdown_time
+
+                cv2.putText(frameL, f"Foto {count+1}/{num_fotos}", (10, frameL.shape[0]-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                cv2.imshow("Grupo PSC", frameL)
+
+                if rosto is not None and start_time is not None and elapsed &gt;= countdown_time:
+                    # Salvar com nome do usuário, e incrementar índice para não substituir
+                    foto_path = f"{dataset_path}/{nome_usuario}_{count}.png"
+                    cv2.imwrite(foto_path, rosto)
+                    print(f"[INFO] Foto {count+1} salva em {foto_path}")
+                    count += 1
+                    start_time = None
+                    time.sleep(0.5)
+
+                if cv2.waitKey(1) &amp; 0xFF == 27:
+                    print("[INFO] Captura interrompida.")
+                    break
+
+            CamL.release()
+            cv2.destroyAllWindows()
+            print(f"[INFO] Captura de fotos para {nome_usuario} concluída.")
+        </code></pre>
+
+        <h2>treinar_eigenfaces()</h2>
+        <p>Lê imagens do dataset, converte para tons de cinza, cria rótulos a partir do prefixo do arquivo, treina um <code>EigenFaceRecognizer</code> e retorna o reconhecedor e o mapa de rótulos.</p>
+        <pre><code>def treinar_eigenfaces():
+            """
+            Carrega as imagens do dataset, treina o modelo Eigenfaces e retorna o reconhecedor treinado.
+            """
+            print("[INFO] Carregando dataset e treinando Eigenfaces...")
+
+            faces = []
+            labels = []
+            label_map = {}
+            current_label = 0
+
+            path_str = f"{dataset_path}/"
+
+            for filename in os.listdir(path_str):
+                if filename.endswith(".png") or filename.endswith(".jpg"):
+                    img_path = os.path.join(path_str, filename)
+                    # Lê a imagem e converte para grayscale se necessário
+                    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                    if img is None:
+                        print(f"[WARN] Não foi possível carregar a imagem {img_path}")
+                        continue
+
+                    # Extrai o nome do usuário do nome do arquivo
+                    nome_usuario = filename.rsplit('_', 1)[0]
+
+                    if nome_usuario not in label_map:
+                        label_map[nome_usuario] = current_label
+                        current_label += 1
+
+                    faces.append(img)
+                    labels.append(label_map[nome_usuario])
+
+            if len(faces) == 0:
+                print("[ERRO] Dataset vazio! Capture fotos antes de treinar.")
+                return None, None
+
+            recognizer = cv2.face.EigenFaceRecognizer_create()
+            recognizer.train(faces, np.array(labels))
+
+            print("[INFO] Treinamento concluído.")
+            return recognizer, label_map
+        </code></pre>
+
+        <h2>reconhecer_rosto_eigenface(recognizer, label_map)</h2>
+        <p>Abre a webcam, aplica remapeamento da calibração, detecta rostos, redimensiona para 200×200, faz <code>predict</code> no reconhecedor Eigenfaces e escreve o nome/“desconhecido” no frame.</p>
+        <pre><code>def reconhecer_rosto_eigenface(recognizer, label_map):
+            """
+            Captura imagem da webcam, aplica calibração com remap, detecta o rosto e tenta reconhecê-lo usando o modelo Eigenfaces.
+            """
+
+            if recognizer is None or label_map is None:
+                print("[ERRO] Modelo não treinado!")
+                return
+
+            # === Ler parâmetros de calibração (remap) ===
+            print("[DEBUG] Carregando parâmetros de calibração...")
+            cv_file = cv2.FileStorage(f"{path}/params_py.xml", cv2.FILE_STORAGE_READ)
+            Left_Stereo_Map_x = cv_file.getNode("Left_Stereo_Map_x").mat()
+            Left_Stereo_Map_y = cv_file.getNode("Left_Stereo_Map_y").mat()
+            cv_file.release()
+            print("[DEBUG] Mapas de calibração carregados com sucesso.")
+
+            # === Inicializar câmera ===
+            cam = cv2.VideoCapture(0)
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+
+            print("[INFO] Posicione seu rosto na frente da câmera para reconhecimento.")
+
+            while True:
+                ret, frame = cam.read()
+                if not ret:
+                    print("[ERRO] Falha ao capturar frame da câmera.")
+                    continue
+
+                # === Aplicar calibração com remap ===
+                frame_corrigido = cv2.remap(frame, Left_Stereo_Map_x, Left_Stereo_Map_y, cv2.INTER_LINEAR)
+
+                gray = cv2.cvtColor(frame_corrigido, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+
+                print(f"[DEBUG] {len(faces)} rosto(s) detectado(s).")
+
+                for i, (x, y, w, h) in enumerate(faces):
+                    rosto = gray[y:y+h, x:x+w]
+                    rosto = cv2.resize(rosto, (200, 200))
+
+                    # Exibe o rosto isolado
+                    cv2.imshow(f"Grupo PSC {i+1}", rosto)
+
+                    # Salva imagem do rosto para inspeção
+                    debug_img_path = f"debug_rosto_predito_{i+1}.png"
+                    cv2.imwrite(debug_img_path, rosto)
+                    print(f"[DEBUG] Rosto {i+1} salvo como {debug_img_path}")
+
+                    # === Predição ===
+                    label_id, confianca = recognizer.predict(rosto)
+                    print(f"[DEBUG] Rosto {i+1} - Label predito: {label_id}, Confiança: {confianca:.2f}")
+
+                    # === Verifica confiança ===
+                    limiar_confianca = 3500  # Ajuste idealmente com validação
+                    if confianca &gt; limiar_confianca:
+                        texto = f"Desconhecido - Confiança: {confianca:.2f}"
+                        print("[DEBUG] Reconhecimento falhou (desconhecido)")
+                    else:
+                        nome_usuario = None
+                        for nome, idx in label_map.items():
+                            if idx == label_id:
+                                nome_usuario = nome
+                                break
+                        texto = f"{nome_usuario} - Confiança: {confianca:.2f}"
+                        print(f"[DEBUG] Reconhecido como {nome_usuario}")
+
+                    # === Mostrar na tela ===
+                    cv2.rectangle(frame_corrigido, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.putText(frame_corrigido, texto, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                # === Mostrar imagem final com anotações ===
+                cv2.imshow("Grupo PSC - Reconhecimento Facial (Eigenfaces)", frame_corrigido)
+
+                if cv2.waitKey(1) &amp; 0xFF == 27:  # ESC para sair
+                    print("[INFO] Reconhecimento encerrado pelo usuário.")
+                    break
+
+            cam.release()
+            cv2.destroyAllWindows()
+        </code></pre>
+
+        <h2>reconhecer_rosto_face_recognition()</h2>
+        <p>Carrega encodes do dataset com a lib <code>face_recognition</code>, abre webcam, localiza rostos, compara distâncias para identificar o mais próximo e escreve nome e “confiança” no frame.</p>
+        <pre><code>def reconhecer_rosto_face_recognition():
+            dataset_path = "dataset_faces"
+
+            print("[INFO] Carregando imagens do dataset para reconhecimento...")
+            imagens = []
+            nomes = []
+            codificacoes = []
+
+            # Carregar imagens e nomes
+            for arquivo in os.listdir(dataset_path):
+                if arquivo.endswith(".png") or arquivo.endswith(".jpg"):
+                    caminho_imagem = os.path.join(dataset_path, arquivo)
+                    img = face_recognition.load_image_file(caminho_imagem)
+                    codificacao = face_recognition.face_encodings(img)
+                    if len(codificacao) &gt; 0:
+                        codificacoes.append(codificacao[0])
+                        nome_usuario = arquivo.rsplit('_', 1)[0]
+                        nomes.append(nome_usuario)
+                    else:
+                        print(f"[WARN] Nenhum rosto encontrado na imagem {arquivo}")
+
+            if len(codificacoes) == 0:
+                print("[ERRO] Nenhuma codificação facial válida encontrada no dataset!")
+                return
+
+            indices = detectar_cameras()
+            if len(indices) &lt; 1:
+                print("❌ Nenhuma câmera detectada.")
+                return
+
+            CamL = cv2.VideoCapture(indices[0])
+
+            print("[INFO] Iniciando reconhecimento. Pressione ESC para sair.")
+
+            while True:
+                ret, frame = CamL.read()
+                if not ret:
+                    continue
+
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                faces = face_recognition.face_locations(rgb_frame)
+                codificacoes_frame = face_recognition.face_encodings(rgb_frame, faces)
+
+                for (top, right, bottom, left), codificacao_rosto in zip(faces, codificacoes_frame):
+                    resultados = face_recognition.compare_faces(codificacoes, codificacao_rosto)
+                    distancias = face_recognition.face_distance(codificacoes, codificacao_rosto)
+                    melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None
+
+                    if melhor_indice is not None and resultados[melhor_indice]:
+                        nome = nomes[melhor_indice]
+                        confianca = 1 - distancias[melhor_indice]  # Confiança inversa da distância
+                    else:
+                        nome = "Desconhecido"
+                        confianca = 0
+
+                    cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+                    cv2.putText(frame, f"{nome} ({confianca:.2f})", (left, top - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                cv2.imshow("Grupo PSC - Reconhecimento Face_Recognition", frame)
+
+                if cv2.waitKey(1) &amp; 0xFF == 27:  # ESC para sair
+                    break
+
+            CamL.release()
+            cv2.destroyAllWindows()
+        </code></pre>
+
+        <h2>run()</h2>
+        <p>Fluxo em modo terminal: calibração (com captura, se necessário), captura de rosto (se necessário), treinamento Eigenfaces e escolha do método de reconhecimento (Eigenfaces ou face_recognition).</p>
+        <pre><code>def run():
+            cal = input("Já tirou foto? (s/n) ")
+            if cal == "n":
+                tirar_fotos()
+                calibragem()
+            else:
+                calibragem()
+
+            face = input("Já tirou foto face? (s/n) ")
+            if face == "n":
+                capturar_fotos_rosto()
+                recognizer, label_map = treinar_eigenfaces()
+            else:
+                recognizer, label_map = treinar_eigenfaces()
+
+            metodo = input("Escolha o método de reconhecimento:\n1 - Eigenfaces\n2 - face_recognition\nDigite 1 ou 2: ")
+
+            if metodo == "1":
+                reconhecer_rosto_eigenface(recognizer, label_map)
+            elif metodo == "2":
+                reconhecer_rosto_face_recognition()
+            else:
+                print("Método inválido. Encerrando.")
+        </code></pre>
+
+        <section>
+            <h2>O que é Eigenfaces (OpenCV)</h2>
+            <p><strong>Ideia central:</strong> aplicar PCA (Análise de Componentes Principais) em imagens de rosto para encontrar uma base de “eigenfaces” que explicam a maior parte da variância do conjunto. Novas imagens são projetadas nesse subespaço e classificadas por distância ao vizinho mais próximo.</p>
+            <h3>Como funciona (passo a passo)</h3>
+            <ol>
+              <li><strong>Vetorização:</strong> transformar a imagem 2D do rosto em um vetor 1D.</li>
+              <li><strong>Face média:</strong> subtrair a média para minimizar viés de iluminação global.</li>
+              <li><strong>PCA:</strong> obter autovetores (eigenfaces) da matriz de covariância; eles formam a base do subespaço.</li>
+              <li><strong>Projeção:</strong> projetar a imagem no subespaço para obter um vetor de coeficientes.</li>
+              <li><strong>Classificação:</strong> comparar por distância (tipicamente Euclidiana) aos vetores projetados do treino.</li>
+              <li><strong>“Confiança” (OpenCV):</strong> valor de <em>distância</em> (quanto menor, melhor). Não é probabilidade.</li>
+            </ol>
+            <h3>Uso no código</h3>
+            <ul>
+              <li><strong>Treino:</strong> carrega imagens do <code>dataset_faces/</code>, converte para escala de cinza e treina com <code>cv2.face.EigenFaceRecognizer_create()</code>.</li>
+              <li><strong>Predição:</strong> detecta o rosto, recorta, redimensiona para <code>200×200</code> e chama <code>recognizer.predict()</code>. Um limiar (ex.: <code>3500</code>) decide “desconhecido”.</li>
+            </ul>
+            <h3>Prós</h3>
+            <ul>
+              <li>Simples, rápido e explicável.</li>
+              <li>Requer pouco dado por pessoa (em ambientes controlados).</li>
+            </ul>
+            <h3>Contras</h3>
+            <ul>
+              <li>Sensível a iluminação, pose e oclusões.</li>
+              <li>Pressupõe alinhamento e padronização fortes.</li>
+              <li>Limiar de “confiança” precisa ser ajustado empiricamente.</li>
+            </ul>
+            <h3>Boas práticas</h3>
+            <ul>
+              <li>Padronizar pré-processamento (grayscale, equalização de histograma, alinhamento por olhos).</li>
+              <li>Garantir mesmo tamanho de entrada no treino e na predição.</li>
+              <li>Ajustar o limiar medindo FAR/FRR em validação.</li>
+            </ul>
+          </section>
+          
+          <hr />
+          
+          <section>
+            <h2>O que é <code>face_recognition</code> (dlib)</h2>
+            <p><strong>Ideia central:</strong> transformar cada rosto em um <strong>vetor de 128 dimensões</strong> usando uma rede neural (ResNet) treinada com perda métrica. Rostos da mesma pessoa ficam próximos nesse espaço; diferentes, distantes.</p>
+            <h3>Como funciona (passo a passo)</h3>
+            <ol>
+              <li><strong>Detecção:</strong> localizar rostos (HOG por padrão; pode usar CNN).</li>
+              <li><strong>Landmarks e alinhamento:</strong> estimar pontos faciais e alinhar o rosto.</li>
+              <li><strong>Embedding 128-D:</strong> extrair o vetor descritivo (assinatura) do rosto.</li>
+              <li><strong>Comparação:</strong> calcular distância Euclidiana entre embeddings; <code>compare_faces</code> usa tolerância típica ≈ <code>0.6</code>.</li>
+            </ol>
+            <h3>Uso no código</h3>
+            <ul>
+              <li><strong>Pré-processamento:</strong> carrega todas as imagens do dataset, extrai um embedding por imagem e armazena junto com o nome.</li>
+              <li><strong>Execução:</strong> para cada rosto no frame atual, calcula o embedding e compara com o banco (menor distância vence). Exibe nome se a distância passar no critério de tolerância.</li>
+              <li><strong>Observação:</strong> a “confiança” exibida como <code>1 - distância</code> é apenas heurística visual; não é probabilidade calibrada.</li>
+            </ul>
+            <h3>Prós</h3>
+            <ul>
+              <li>Bem mais robusto a variações de iluminação/pose moderadas.</li>
+              <li>Expansão simples: basta adicionar novas imagens (novos embeddings).</li>
+              <li>Não exige treinar um classificador por pessoa.</li>
+            </ul>
+            <h3>Contras</h3>
+            <ul>
+              <li>Embedding é mais custoso computacionalmente que PCA.</li>
+              <li>A tolerância ideal (ex.: 0.6) precisa ser ajustada ao seu ambiente.</li>
+            </ul>
+            <h3>Boas práticas</h3>
+            <ul>
+              <li>Usar múltiplas fotos por pessoa (ângulos/expressões/iluminações diferentes).</li>
+              <li>Ajustar a tolerância com validação local (ex.: 0.45–0.70).</li>
+              <li>Se precisar de mais precisão na detecção, considerar o detector CNN (mais pesado).</li>
+            </ul>
+          </section>
+          
+          <hr />
+          
+          <section>
+            <h2>Quadro de Comparação</h2>
+            <table border="1" cellpadding="6" cellspacing="0">
+              <thead>
+                <tr>
+                  <th>Aspecto</th>
+                  <th>Eigenfaces (OpenCV)</th>
+                  <th>face_recognition (dlib)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Representação</td>
+                  <td>PCA (subespaço linear de “eigenfaces”)</td>
+                  <td>Embedding 128-D por rede neural (ResNet)</td>
+                </tr>
+                <tr>
+                  <td>Treinamento</td>
+                  <td>Treina modelo com todo o dataset (calcula base PCA)</td>
+                  <td>Não treina por pessoa; apenas extrai embeddings e armazena</td>
+                </tr>
+                <tr>
+                  <td>Métrica / Saída</td>
+                  <td>Distância no subespaço; “confidence” é distância (menor=melhor)</td>
+                  <td>Distância Euclidiana entre embeddings; <code>compare_faces</code> usa tolerância (≈0.6)</td>
+                </tr>
+                <tr>
+                  <td>Robustez</td>
+                  <td>Baixa para variações de luz/pose/oclusão</td>
+                  <td>Alta para variações moderadas</td>
+                </tr>
+                <tr>
+                  <td>Pré-processamento</td>
+                  <td>Exige forte padronização (grayscale, alinhamento, tamanho fixo)</td>
+                  <td>Alinhamento via landmarks embutido; ainda ajuda padronizar</td>
+                </tr>
+                <tr>
+                  <td>Dados por pessoa</td>
+                  <td>Poucos já funcionam, mas ambiente precisa ser controlado</td>
+                  <td>Quanto mais diversidade, melhor generalização</td>
+                </tr>
+                <tr>
+                  <td>Velocidade</td>
+                  <td>Muito rápido (projeção em PCA)</td>
+                  <td>Razoável (custo do embedding é maior)</td>
+                </tr>
+                <tr>
+                  <td>Ajuste de decisão</td>
+                  <td>Limiar empírico da distância (ex.: 3500 no seu código)</td>
+                  <td>Tolerância empírica (ex.: 0.6); ajustar conforme FAR/FRR</td>
+                </tr>
+                <tr>
+                  <td>Escalabilidade</td>
+                  <td>Adicionar pessoas pode exigir re-treino do PCA</td>
+                  <td>Basta adicionar novos embeddings; não requer re-treino global</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          
+          <hr />
+
+        <section>
+        <h2>Demonstração de Uso</h2>
+        <p>Para visualizar a demonstração prática da aplicação dos métodos de reconhecimento facial, acesse o link abaixo:</p>
+        <p><a href="https://photos.app.goo.gl/UNDrF7m7sBGz65N3A" target="_blank">▶ Ver Demonstração</a></p>
+        </section>
       
         <h2>Laboratorio Experimental</h2>
         <p> O teste em campo ocorreu no dia 11/08/2025 e disponibilizamos o seguinte passo a passo para as pessoas abaixo. </p>
