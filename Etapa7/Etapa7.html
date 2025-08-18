@@ -158,11 +158,25 @@
         <h3>Lista dos arquivos: dos código-fonte, imagens, vídeos, e arquivos auxiliares.</h3>
         <ul>
             <li><a href="#projetopy">Código em Python</a></li>
-            <li><a href="params_py.xml" >Parâmetros de calibração da câmera</a></li>
-            <li><a href="dataset_faces.zip">Dataset de rostos cadastrados</a></li>
+            <li><a href="#paramsxml" >Parâmetros de calibração da câmera</a></li>
+            <li><a href="#datasetfaces">Dataset de rostos cadastrados</a></li>
         </ul>
         <h3>Análise Técnica</h3>
+
+          <ul>
+            <li><strong>Captura e Calibração de Imagens:</strong> Utiliza OpenCV para detectar câmeras, capturar imagens de tabuleiro de xadrez e realizar calibração intrínseca/extrínseca, gerando mapas de correção para distorção óptica.</li>
+            <li><strong>Pré-processamento:</strong> Aplica conversão para escala de cinza, redimensionamento e suavização (GaussianBlur) nas imagens faciais para melhorar a qualidade do reconhecimento.</li>
+            <li><strong>Reconhecimento Facial:</strong> Implementa dois métodos:
+            <ul>
+            <li><strong>Eigenfaces (OpenCV):</strong> Treina um modelo com imagens do dataset e realiza reconhecimento por similaridade, exibindo confiança e nome do usuário.</li>
+            <li><strong>face_recognition:</strong> Utiliza codificações faciais para comparar e identificar rostos em tempo real, mostrando nome e confiança.</li>
+            </ul>
+            </li>
+            <li><strong>Organização do Dataset:</strong> Gerencia diretórios e arquivos para armazenar imagens capturadas e resultados do processamento.</li>
+            <li><strong>Validação e Feedback:</strong> Exibe mensagens informativas, status de operações e resultados diretamente na interface e no terminal.</li>
+          </ul>
         <h3>Código fonte</h3>
+        <p>O código fonte pode ser encontrado no arquivo <a href="#projetopy">projeto.py</a></p>
         <h2>detectar_cameras(max_cameras=10)</h2>
         <p>Varre índices de 0 até <code>max_cameras-1</code>, abre cada dispositivo com OpenCV e adiciona à lista se um frame válido é lido. Retorna a lista de índices detectados.</p>
         <pre><code class="language-python">def detectar_cameras(max_cameras=10):
@@ -1088,7 +1102,7 @@ melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None</code>
 
         <h2>Anexos </h2>
         <ul>
-            <li><a id="projetopy" href="projeto.py" download>Código em Python</a></li>
+            <li><a id="projetopy" href="projeto.py" download>Código do Projeto em Python</a></li>
             <li><a id="paramsxml" href="params_py.xml" download>Parâmetros de calibração da câmera</a></li>
             <li><a id="datasetfaces" href="dataset_faces.zip" download>Dataset de rostos cadastrados</a></li>
         </ul>
