@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Relatório Final</title>
@@ -37,6 +40,14 @@
         }
         .botao-form:hover {
             background-color: #45a049;
+        }
+        
+        pre {
+          background: #1e1e1e;
+          color: #d4d4d4;
+          padding: 15px;
+          border-radius: 8px;
+          overflow-x: auto;
         }
     </style>
 </head>
@@ -119,15 +130,42 @@
         
         <h3>Descrição da implementação do Sistema de Processamento da Visão (SPV)</h3>
         
-
+        <section>
+          <p>
+            O sistema implementado em <code>projeto.py</code> realiza o controle de acesso por reconhecimento facial, utilizando Python, OpenCV, dlib. O usuário pode calibrar a câmera, cadastrar rostos, treinar modelos e realizar o reconhecimento em tempo real.
+          </p>
+          <ul>
+            <li>
+              <strong>Filtragem de Imagens:</strong> Durante o cadastro de rostos, o sistema aplica um filtro Gaussiano para suavizar o recorte facial (<a href="#capturar_fotos_rosto"><code >cv2.GaussianBlur</code></a>), reduzindo ruídos e melhorando a qualidade das imagens para o reconhecimento.
+            </li>
+            <li>
+              <strong>Transformações Geométricas:</strong> Os rostos detectados são redimensionados para um tamanho padrão (<a href="#capturar_fotos_rosto"><code>cv2.resize</code></a>) e as imagens passam por remapeamento para correção de distorção da lente (<a href="#capturar_fotos_rosto"><code>cv2.remap</code></a>), garantindo padronização e precisão.
+            </li>
+            <li>
+              <strong>Calibração de Câmeras:</strong> O sistema utiliza um tabuleiro de xadrez para coletar pontos de referência, 
+              calcula os parâmetros intrínsecos e extrínsecos da câmera com <a href="#calcula_params"><code>cv2.calibrateCamera</code></a> e gera mapas de desdistorção para uso posterior.
+            </li>
+            <li>
+              <strong>Propriedades Intrínsecas e Extrínsecas:</strong> A calibração retorna matriz intrínseca, coeficientes de distorção, vetores de rotação e translação, essenciais para corrigir e entender a geometria da câmera.
+            </li>
+            <li>
+              <strong>Reconhecimento:</strong> O sistema oferece dois métodos: <a href="#eigenfaces">Eigenfaces</a> (PCA com OpenCV) e <a href="#face_recognition">face_recognition</a> (embeddings com dlib). Ambos detectam rostos, extraem características e comparam com o banco de dados para identificar usuários autorizados.
+            </li>
+          </ul>
+        </section>
 
         
         <h3>Lista dos arquivos: dos código-fonte, imagens, vídeos, e arquivos auxiliares.</h3>
+        <ul>
+            <li><a href="#projetopy">Código em Python</a></li>
+            <li><a href="params_py.xml" >Parâmetros de calibração da câmera</a></li>
+            <li><a href="dataset_faces.zip">Dataset de rostos cadastrados</a></li>
+        </ul>
         <h3>Análise Técnica</h3>
         <h3>Código fonte</h3>
         <h2>detectar_cameras(max_cameras=10)</h2>
         <p>Varre índices de 0 até <code>max_cameras-1</code>, abre cada dispositivo com OpenCV e adiciona à lista se um frame válido é lido. Retorna a lista de índices detectados.</p>
-        <pre><code>def detectar_cameras(max_cameras=10):
+        <pre><code class="language-python">def detectar_cameras(max_cameras=10):
             print("Procurando por câmeras conectadas...")
             indices_disponiveis = []
             for i in range(max_cameras):
@@ -141,7 +179,7 @@
 
         <h2>tirar_fotos()</h2>
         <p>Usa a primeira câmera encontrada, mostra um contador de 2s, tenta detectar um tabuleiro de xadrez 8×6 e, quando detectado no momento do disparo, salva até 20 imagens para calibração.</p>
-        <pre><code>def tirar_fotos():
+        <pre><code class="language-python">def tirar_fotos():
 
             indices = detectar_cameras()
             if len(indices) &lt; 1:
@@ -193,7 +231,7 @@
 
         <h2>calibragem()</h2>
         <p>Para cada imagem salva (img1..img20), detecta cantos do tabuleiro 8×6, refina com <code>cornerSubPix</code>, desenha e acumula pares 3D–2D. Ao final chama <code>calcula_params</code>.</p>
-        <pre><code>def calibragem():
+        <pre><code class="language-python">def calibragem():
             print("Extracting image coordinates of respective 3D pattern ....\n")
 
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -227,11 +265,11 @@
             calcula_params(obj_pts, img_ptsL, imgL_gray)
         </code></pre>
 
-        <h2>calcula_params(obj_pts, img_ptsL, imgL_gray)</h2>
+        <h2 id="calcula_params">calcula_params(obj_pts, img_ptsL, imgL_gray)</h2>
         <p>Roda <code>cv2.calibrateCamera</code> para obter intrínsecos e distorção. Cria mapas de remapeamento com <code>initUndistortRectifyMap</code> e salva em <code>params_py.xml</code>.</p>
-        <pre><code>def calcula_params(obj_pts, img_ptsL, imgL_gray):
+        <pre><code class="language-python">def calcula_params(obj_pts, img_ptsL, imgL_gray):
             print("Calculating left camera parameters ... ")
-            retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
+            retL, mtxL, distL, rvecsL, tvecsL = <strong>cv2.calibrateCamera</strong>(obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
 
             Left_Stereo_Map = cv2.initUndistortRectifyMap(
                 mtxL, distL, None, mtxL, imgL_gray.shape[::-1], cv2.CV_16SC2
@@ -246,14 +284,14 @@
 
         <h2>criar_diretorio_dataset()</h2>
         <p>Garante que a pasta <code>dataset_faces</code> exista para salvar os recortes de rosto.</p>
-        <pre><code>def criar_diretorio_dataset():
+        <pre><code class="language-python">def criar_diretorio_dataset():
             if not os.path.exists(dataset_path):
                 os.makedirs(dataset_path)
         </code></pre>
 
-        <h2>capturar_fotos_rosto()</h2>
+        <h2 id="capturar_fotos_rosto">capturar_fotos_rosto()</h2>
         <p>Lê o nome do usuário, carrega os mapas de remapeamento da calibração, detecta um rosto (Haar Cascade), faz um countdown de 3s, recorta, suaviza e salva uma imagem 200×200 em <code>dataset_faces/&lt;usuario&gt;_0.png</code>.</p>
-        <pre><code>def capturar_fotos_rosto():
+        <pre><code class="language-python">def capturar_fotos_rosto():
             num_fotos = 1
             nome_usuario = input("Digite o nome do usuário para capturar as fotos: ").strip()
             if not nome_usuario:
@@ -332,9 +370,9 @@
             print(f"[INFO] Captura de fotos para {nome_usuario} concluída.")
         </code></pre>
 
-        <h2>treinar_eigenfaces()</h2>
+        <h2 id="eigenfaces">treinar_eigenfaces()</h2>
         <p>Lê imagens do dataset, converte para tons de cinza, cria rótulos a partir do prefixo do arquivo, treina um <code>EigenFaceRecognizer</code> e retorna o reconhecedor e o mapa de rótulos.</p>
-        <pre><code>def treinar_eigenfaces():
+        <pre><code class="language-python">def treinar_eigenfaces():
             """
             Carrega as imagens do dataset, treina o modelo Eigenfaces e retorna o reconhecedor treinado.
             """
@@ -379,7 +417,7 @@
 
         <h2>reconhecer_rosto_eigenface(recognizer, label_map)</h2>
         <p>Abre a webcam, aplica remapeamento da calibração, detecta rostos, redimensiona para 200×200, faz <code>predict</code> no reconhecedor Eigenfaces e escreve o nome/“desconhecido” no frame.</p>
-        <pre><code>def reconhecer_rosto_eigenface(recognizer, label_map):
+        <pre><code class="language-python">def reconhecer_rosto_eigenface(recognizer, label_map):
             """
             Captura imagem da webcam, aplica calibração com remap, detecta o rosto e tenta reconhecê-lo usando o modelo Eigenfaces.
             """
@@ -461,9 +499,9 @@
             cv2.destroyAllWindows()
         </code></pre>
 
-        <h2>reconhecer_rosto_face_recognition()</h2>
+        <h2 id="face_recognition">reconhecer_rosto_face_recognition()</h2>
         <p>Carrega encodes do dataset com a lib <code>face_recognition</code>, abre webcam, localiza rostos, compara distâncias para identificar o mais próximo e escreve nome e “confiança” no frame.</p>
-        <pre><code>def reconhecer_rosto_face_recognition():
+        <pre><code class="language-python">def reconhecer_rosto_face_recognition():
             dataset_path = "dataset_faces"
 
             print("[INFO] Carregando imagens do dataset para reconhecimento...")
@@ -533,7 +571,7 @@
 
         <h2>run()</h2>
         <p>Fluxo em modo terminal: calibração (com captura, se necessário), captura de rosto (se necessário), treinamento Eigenfaces e escolha do método de reconhecimento (Eigenfaces ou face_recognition).</p>
-        <pre><code>def run():
+        <pre><code class="language-python">def run():
             cal = input("Já tirou foto? (s/n) ")
             if cal == "n":
                 tirar_fotos()
@@ -752,7 +790,7 @@
       <td>Filtragem de imagens</td>
       <td><code>capturar_fotos_rosto()</code> — suavização do recorte do rosto</td>
       <td>
-        <pre><code>rosto = cv2.resize(rosto, (200, 200))
+        <pre><code class="language-python">rosto = cv2.resize(rosto, (200, 200))
 rosto = cv2.GaussianBlur(rosto, (5, 5), 0)  # Suavização de ruído</code></pre>
       </td>
     </tr>
@@ -764,9 +802,9 @@ rosto = cv2.GaussianBlur(rosto, (5, 5), 0)  # Suavização de ruído</code></pre
         <p>b) Remapeamento (desdistorção por mapa)</p>
       </td>
       <td>
-        <pre><code># a) Em capturar_fotos_rosto() e reconhecer_rosto_eigenface()
+        <pre><code class="language-python"># a) Em capturar_fotos_rosto() e reconhecer_rosto_eigenface()
 rosto = cv2.resize(rosto, (200, 200))</code></pre>
-        <pre><code># b) Em reconhecer_rosto_eigenface() (aplica mapas gerados na calibração)
+        <pre><code class="language-python"># b) Em reconhecer_rosto_eigenface() (aplica mapas gerados na calibração)
 frame_corrigido = cv2.remap(frame, Left_Stereo_Map_x, Left_Stereo_Map_y, cv2.INTER_LINEAR)</code></pre>
       </td>
     </tr>
@@ -778,12 +816,12 @@ frame_corrigido = cv2.remap(frame, Left_Stereo_Map_x, Left_Stereo_Map_y, cv2.INT
         <p>b) Estimativa de parâmetros e mapas</p>
       </td>
       <td>
-        <pre><code># a) Em calibragem()
+        <pre><code class="language-python"># a) Em calibragem()
 retL, cornersL = cv2.findChessboardCorners(outputL, (8, 6), None)
 cv2.cornerSubPix(imgL_gray, cornersL, (11, 11), (-1, -1), criteria)
 img_ptsL.append(cornersL)
 obj_pts.append(objp)</code></pre>
-        <pre><code># b) Em calcula_params()
+        <pre><code class="language-python"># b) Em calcula_params()
 retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(
     obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
 
@@ -801,7 +839,7 @@ cv_file.release()</code></pre>
       <td>Propriedades intrínsecas e extrínsecas</td>
       <td><code>calcula_params()</code> — retornos de <code>calibrateCamera</code></td>
       <td>
-        <pre><code>retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(
+        <pre><code class="language-python">retL, mtxL, distL, rvecsL, tvecsL = cv2.calibrateCamera(
     obj_pts, img_ptsL, imgL_gray.shape[::-1], None, None)
 # mtxL  -> matriz intrínseca
 # distL -> coeficientes de distorção (intrínsecos)
@@ -828,10 +866,10 @@ cv_file.release()</code></pre>
         <p>b) Predição no frame</p>
       </td>
       <td>
-        <pre><code># a) Em treinar_eigenfaces()
+        <pre><code class="language-python"># a) Em treinar_eigenfaces()
 recognizer = cv2.face.EigenFaceRecognizer_create()
 recognizer.train(faces, np.array(labels))</code></pre>
-        <pre><code># b) Em reconhecer_rosto_eigenface()
+        <pre><code class="language-python"># b) Em reconhecer_rosto_eigenface()
 label_id, confianca = recognizer.predict(rosto)
 limiar_confianca = 3500
 if confianca &gt; limiar_confianca:
@@ -848,12 +886,12 @@ else:
         <p>b) Comparação de embeddings na webcam</p>
       </td>
       <td>
-        <pre><code># a) Em reconhecer_rosto_face_recognition() (pré-carregamento)
+        <pre><code class="language-python"># a) Em reconhecer_rosto_face_recognition() (pré-carregamento)
 img = face_recognition.load_image_file(caminho_imagem)
 codificacao = face_recognition.face_encodings(img)
 if len(codificacao) &gt; 0:
     codificacoes.append(codificacao[0])</code></pre>
-        <pre><code># b) Em reconhecer_rosto_face_recognition() (loop da câmera)
+        <pre><code class="language-python"># b) Em reconhecer_rosto_face_recognition() (loop da câmera)
 faces = face_recognition.face_locations(rgb_frame)
 codificacoes_frame = face_recognition.face_encodings(rgb_frame, faces)
 resultados = face_recognition.compare_faces(codificacoes, codificacao_rosto)
@@ -913,6 +951,7 @@ melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None</code>
         Abaixo estão os resultados individuais:
         </p>
         
+        <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin: 24px 0;">
         <table border="1" cellpadding="8" cellspacing="0">
             <tr>
                 <th>R.A.</th>
@@ -995,6 +1034,7 @@ melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None</code>
                 <td>10,0</td>
             </tr>
         </table>
+        </div>
         
         <p>
         De forma geral, os resultados mostram um alto nível de acerto, com a maioria dos participantes alcançando a nota máxima (10,0). 
@@ -1004,6 +1044,24 @@ melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None</code>
 
         
         <h2>Conclusões</h2>
+
+        <p>
+        O projeto de Sistema de Controle de Acesso com Visão Computacional demonstrou ser uma solução viável e eficiente para aumentar a segurança em ambientes escolares e 
+        corporativos. Com o uso de técnicas de calibração, filtragem e reconhecimento facial, foi possível implementar um sistema capaz de identificar usuários autorizados e 
+        registrar acessos de forma automática, reduzindo falhas comuns em métodos tradicionais como senhas e cartões.
+        </p>
+
+        <p>
+        Durante o desenvolvimento, foram adquiridos aprendizados valiosos no campo da visão computacional, como a importância do pré-processamento de imagens para aumentar a 
+        precisão dos algoritmos, o papel fundamental da iluminação e do posicionamento da câmera na qualidade da detecção, além do entendimento prático de como redes neurais e 
+        técnicas de machine learning podem ser aplicadas para reconhecimento facial em tempo real.
+        </p>
+
+        <p>
+        Os testes em campo mostraram resultados positivos, com alta taxa de acertos e boa aceitação pelos participantes. Assim, concluímos que o sistema cumpre seu objetivo 
+        de aliar tecnologia e segurança, apresentando grande potencial para aplicações reais e futuras melhorias com o avanço das técnicas de inteligência artificial.
+        </p>
+
 
         <h2>Referências Bibliográficas</h2>
         <ul>
@@ -1029,11 +1087,12 @@ melhor_indice = np.argmin(distancias) if len(distancias) &gt; 0 else None</code>
 
 
         <h2>Anexos </h2>
-        
+        <ul>
+            <li><a id="projetopy" href="projeto.py" download>Código em Python</a></li>
+            <li><a id="paramsxml" href="params_py.xml" download>Parâmetros de calibração da câmera</a></li>
+            <li><a id="datasetfaces" href="dataset_faces.zip" download>Dataset de rostos cadastrados</a></li>
+        </ul>
 
-  
-        
-      
     </section>
 
   
